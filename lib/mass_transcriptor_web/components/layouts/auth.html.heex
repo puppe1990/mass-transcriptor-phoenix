@@ -1,0 +1,37 @@
+<section class="auth-shell">
+  <div class="auth-shell__story">
+    <div>
+      <p class="auth-shell__eyebrow">Mass Transcriptor</p>
+      <h1 class="auth-shell__hero">{gettext("Turn raw audio into structured notes.")}</h1>
+      <p class="auth-shell__lede">
+        {gettext(
+          "Upload recordings, transcribe with AssemblyAI, and keep every transcript saved as markdown."
+        )}
+      </p>
+    </div>
+    <div class="auth-shell__visual" aria-hidden="true">
+      <div class="auth-shell__wave auth-shell__wave--tall"></div>
+      <div class="auth-shell__wave auth-shell__wave--mid"></div>
+      <div class="auth-shell__wave auth-shell__wave--short"></div>
+      <div class="auth-shell__wave auth-shell__wave--mid"></div>
+      <div class="auth-shell__wave auth-shell__wave--tall"></div>
+      <div class="auth-shell__wave auth-shell__wave--short"></div>
+      <div class="auth-shell__wave auth-shell__wave--mid"></div>
+      <div class="auth-shell__wave auth-shell__wave--tall"></div>
+      <div class="auth-shell__wave auth-shell__wave--short"></div>
+      <div class="auth-shell__wave auth-shell__wave--mid"></div>
+      <div class="auth-shell__wave auth-shell__wave--tall"></div>
+    </div>
+  </div>
+  <div class="auth-shell__panel">
+    <div class="auth-shell__panel-toolbar">
+      <.theme_toggle class="theme-toggle theme-toggle--compact btn--ghost" />
+    </div>
+    <p class="auth-shell__eyebrow">{@eyebrow}</p>
+    <h2 class="auth-shell__panel-title">{@title}</h2>
+    <p class="auth-shell__panel-subtitle">{@subtitle}</p>
+    <.flash flash={@flash} kind={:error} />
+    <.flash flash={@flash} kind={:info} />
+    {render_slot(@inner_block)}
+  </div>
+</section>

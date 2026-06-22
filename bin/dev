@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+START_PORT="${PORT:-4000}"
+MAX_ATTEMPTS="${MAX_PORT_ATTEMPTS:-50}"
+
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+  START_PORT="${PORT:-$START_PORT}"
+fi
+
+if ! command -v mix >/dev/null 2>&1; then
+  echo "Erro: mix não encontrado. Instale o Elixir antes de continuar." >&2
+  exit 1
+fi
+
+deps_installed?() {
+  [ -d deps ] && [ -n "$(ls -A deps 2>/dev/null || true)" ]
+}
+
+if ! deps_installed?; then
+  echo "→ Primeira execução: instalando dependências e configurando projeto..."
+  mix setup
+elif ! mix deps.check >/dev/null 2>&1; then
+  echo "→ Dependências desatualizadas, atualizando..."
+  mix deps.get
+fi
+
+port_in_use?() {
+  local port="$1"
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+find_free_port() {
+  local port="$1"
+  local attempts=0
+
+  while [ "$attempts" -lt "$MAX_ATTEMPTS" ]; do
+    if ! port_in_use? "$port"; then
+      echo "$port"
+      return 0
+    fi
+
+    echo "→ Porta $port ocupada, tentando próxima..." >&2
+    port=$((port + 1))
+    attempts=$((attempts + 1))
+  done
+
+  echo "Erro: nenhuma porta livre entre $START_PORT e $((START_PORT + MAX_ATTEMPTS - 1))." >&2
+  return 1
+}
+
+FREE_PORT="$(find_free_port "$START_PORT")"
+export PORT="$FREE_PORT"
+
+echo "→ Iniciando servidor em http://localhost:$PORT"
+exec mix phx.server

@@ -1,0 +1,63 @@
+<div class="app-shell">
+  <nav class="app-sidebar" aria-label={gettext("Workspace sidebar")}>
+    <div class="app-sidebar__brand">
+      <div class="app-sidebar__logo" aria-hidden="true">M</div>
+      <div class="app-sidebar__brand-text">
+        <p class="app-sidebar__eyebrow">Mass Transcriptor</p>
+        <strong>{@tenant_slug}</strong>
+      </div>
+    </div>
+
+    <div class="app-sidebar__links">
+      <.link
+        navigate={~p"/t/#{@tenant_slug}/uploads"}
+        class={if @active_tab == :uploads, do: "active"}
+      >
+        <.nav_icon name={:uploads} />
+        {gettext("Uploads")}
+      </.link>
+      <.link navigate={~p"/t/#{@tenant_slug}/jobs"} class={if @active_tab == :jobs, do: "active"}>
+        <.nav_icon name={:jobs} />
+        {gettext("Jobs")}
+      </.link>
+      <.link
+        navigate={~p"/t/#{@tenant_slug}/settings"}
+        class={if @active_tab == :settings, do: "active"}
+      >
+        <.nav_icon name={:settings} />
+        {gettext("Settings")}
+      </.link>
+    </div>
+
+    <div class="app-sidebar__footer">
+      <.theme_toggle />
+
+      <form phx-change="change_locale" id="locale-form">
+        <label class="app-sidebar__field">
+          <span>{gettext("Language")}</span>
+          <select
+            class="app-control app-control--select"
+            aria-label={gettext("Language")}
+            name="locale"
+            id="locale-select"
+          >
+            <option value="en" selected={@locale == "en"}>{gettext("English")}</option>
+            <option value="pt_BR" selected={@locale == "pt_BR"}>
+              {gettext("Português (BR)")}
+            </option>
+          </select>
+        </label>
+      </form>
+
+      <.link href={~p"/signout"} method="delete" class="btn--ghost">
+        {gettext("Sign out")}
+      </.link>
+    </div>
+  </nav>
+
+  <main class="app-content">
+    {render_slot(@inner_block)}
+  </main>
+</div>
+
+<.flash_group flash={@flash} />
