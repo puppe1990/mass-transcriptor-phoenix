@@ -89,8 +89,8 @@ defmodule MassTranscriptorWeb do
       import MassTranscriptorWeb.UIComponents
 
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias MassTranscriptorWeb.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

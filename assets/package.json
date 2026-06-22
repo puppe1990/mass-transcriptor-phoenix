@@ -1,0 +1,11 @@
+{
+  "name": "mass-transcriptor-assets",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write \"js/**/*.js\" \"vendor/**/*.js\"",
+    "format:check": "prettier --check \"js/**/*.js\" \"vendor/**/*.js\""
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}

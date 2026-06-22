@@ -19,9 +19,7 @@ function applyTheme(theme) {
     if (lightIcon) lightIcon.hidden = !isLight;
 
     if (label) {
-      label.textContent = isLight
-        ? button.dataset.themeDarkLabel
-        : button.dataset.themeLightLabel;
+      label.textContent = isLight ? button.dataset.themeDarkLabel : button.dataset.themeLightLabel;
     }
 
     button.setAttribute(

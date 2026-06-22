@@ -5,8 +5,8 @@ defmodule MassTranscriptorWeb.JobDownloadController do
 
   alias MassTranscriptor.Accounts
   alias MassTranscriptor.Jobs
-  alias MassTranscriptor.Repo
   alias MassTranscriptor.Jobs.TranscriptionResult
+  alias MassTranscriptor.Repo
 
   plug :require_authenticated_user when action in [:show]
   plug :assign_tenant_and_job when action in [:show]

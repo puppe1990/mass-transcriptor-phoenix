@@ -72,29 +72,45 @@ defmodule MassTranscriptor.Transcription.AssemblyAI do
   defp poll_transcript(transcript_id, api_key, poll_interval, max_polls, req_options) do
     Enum.reduce_while(1..max_polls, {:error, "AssemblyAI transcription timed out"}, fn attempt,
                                                                                        _acc ->
-      case request!(
-             [
-               method: :get,
-               url: "#{@base_url}/transcript/#{transcript_id}",
-               headers: auth_headers(api_key)
-             ] ++ req_options
-           ) do
-        %{"status" => "completed"} = transcript ->
-          {:halt, {:ok, transcript}}
-
-        %{"status" => "error", "error" => message} ->
-          {:halt, {:error, message || "AssemblyAI transcription failed"}}
-
-        %{"status" => status} when status in ["queued", "processing"] ->
-          if attempt < max_polls, do: sleep(poll_interval)
-          {:cont, {:error, "AssemblyAI transcription timed out"}}
-
-        _ ->
-          {:halt, {:error, "AssemblyAI transcription failed"}}
-      end
+      transcript_id
+      |> fetch_transcript_status(api_key, req_options)
+      |> handle_poll_response(attempt, max_polls, poll_interval)
     end)
   rescue
     error -> {:error, Exception.message(error)}
+  end
+
+  defp fetch_transcript_status(transcript_id, api_key, req_options) do
+    request!(
+      [
+        method: :get,
+        url: "#{@base_url}/transcript/#{transcript_id}",
+        headers: auth_headers(api_key)
+      ] ++ req_options
+    )
+  end
+
+  defp handle_poll_response(%{"status" => "completed"} = transcript, _attempt, _max, _interval) do
+    {:halt, {:ok, transcript}}
+  end
+
+  defp handle_poll_response(%{"status" => "error", "error" => message}, _attempt, _max, _interval) do
+    {:halt, {:error, message || "AssemblyAI transcription failed"}}
+  end
+
+  defp handle_poll_response(
+         %{"status" => status},
+         attempt,
+         max_polls,
+         poll_interval
+       )
+       when status in ["queued", "processing"] do
+    if attempt < max_polls, do: sleep(poll_interval)
+    {:cont, {:error, "AssemblyAI transcription timed out"}}
+  end
+
+  defp handle_poll_response(_response, _attempt, _max, _interval) do
+    {:halt, {:error, "AssemblyAI transcription failed"}}
   end
 
   defp maybe_put_language(body, nil), do: Map.put(body, "language_detection", true)
