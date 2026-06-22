@@ -16,6 +16,7 @@ defmodule MassTranscriptor.Jobs do
   alias MassTranscriptor.Repo
   alias MassTranscriptor.Storage
   alias MassTranscriptor.Transcription.{AssemblyAI, Markdown}
+  alias MassTranscriptor.Workers.TranscribeJob
 
   def create_uploads_and_jobs(%Tenant{} = tenant, files) when is_list(files) do
     batch = maybe_create_batch(tenant, files)
@@ -65,7 +66,7 @@ defmodule MassTranscriptor.Jobs do
 
   defp enqueue_transcription(job) do
     %{job_id: job.id}
-    |> MassTranscriptor.Workers.TranscribeJob.new()
+    |> TranscribeJob.new()
     |> Oban.insert()
   end
 
@@ -245,16 +246,14 @@ defmodule MassTranscriptor.Jobs do
              transcript_text: text,
              provider_metadata_json: Jason.encode!(metadata)
            })
-           |> Repo.insert(),
-         {:ok, job} <-
-           job
-           |> TranscriptionJob.changeset(%{
-             status: "completed",
-             completed_at: now,
-             error_message: nil
-           })
-           |> Repo.update() do
-      {:ok, job}
+           |> Repo.insert() do
+      job
+      |> TranscriptionJob.changeset(%{
+        status: "completed",
+        completed_at: now,
+        error_message: nil
+      })
+      |> Repo.update()
     end
   end
 
