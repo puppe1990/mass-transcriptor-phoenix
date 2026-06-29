@@ -76,8 +76,9 @@ defmodule MassTranscriptor.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
-      "assets.build": ["compile", "esbuild mass_transcriptor"],
+      "assets.build": ["compile", "assets.copy_css", "esbuild mass_transcriptor"],
       "assets.deploy": [
+        "assets.copy_css",
         "esbuild mass_transcriptor --minify",
         "phx.digest"
       ],
