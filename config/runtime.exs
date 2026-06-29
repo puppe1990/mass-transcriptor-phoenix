@@ -45,15 +45,8 @@ if config_env() == :prod do
         pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
       ]
     else
-      database_path =
-        System.get_env("DATABASE_PATH") ||
-          raise """
-          environment variable DATABASE_PATH is missing.
-          For Turso, set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN instead.
-          """
-
       [
-        database: database_path,
+        database: System.get_env("DATABASE_PATH") || "build.db",
         pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
       ]
     end
