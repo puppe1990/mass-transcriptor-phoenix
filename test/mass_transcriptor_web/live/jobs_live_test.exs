@@ -72,6 +72,32 @@ defmodule MassTranscriptorWeb.JobsLiveTest do
     assert has_element?(view, "#job-row-#{job.id} .jobs-table__error")
   end
 
+  test "paginates job rows", %{conn: conn, tenant: tenant} do
+    for index <- 1..16 do
+      Jobs.create_uploads_and_jobs(tenant, [
+        %{
+          filename: "file-#{index}.wav",
+          mime_type: "audio/wav",
+          size: 4,
+          content: "data-#{index}"
+        }
+      ])
+    end
+
+    {:ok, view, html} = live(conn, ~p"/t/#{tenant.slug}/jobs")
+
+    assert html =~ "file-16.wav"
+    refute html =~ "file-1.wav"
+    assert has_element?(view, "#jobs-pagination")
+    assert has_element?(view, "#jobs-pagination-next")
+
+    {:ok, view, html} = live(conn, ~p"/t/#{tenant.slug}/jobs?page=2")
+
+    assert html =~ "file-1.wav"
+    refute html =~ "file-16.wav"
+    assert has_element?(view, "#jobs-pagination-prev")
+  end
+
   test "refreshes list on poll when jobs are active", %{conn: conn, tenant: tenant} do
     [job] =
       Jobs.create_uploads_and_jobs(tenant, [

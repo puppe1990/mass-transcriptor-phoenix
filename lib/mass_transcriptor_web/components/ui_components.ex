@@ -5,6 +5,8 @@ defmodule MassTranscriptorWeb.UIComponents do
   use Gettext, backend: MassTranscriptorWeb.Gettext
   use MassTranscriptorWeb, :verified_routes
 
+  import MassTranscriptorWeb.CoreComponents, only: [icon: 1]
+
   alias MassTranscriptor.Jobs.Grouping
 
   attr :class, :string, default: "theme-toggle btn--ghost"
@@ -224,6 +226,68 @@ defmodule MassTranscriptorWeb.UIComponents do
     <% end %>
     """
   end
+
+  attr :pagination, :map, required: true
+  attr :tenant_slug, :string, required: true
+
+  def jobs_pagination(assigns) do
+    ~H"""
+    <nav class="pagination" id="jobs-pagination" aria-label={gettext("Jobs pagination")}>
+      <p class="pagination__summary">
+        {gettext("Showing %{from}–%{to} of %{count}",
+          from: @pagination.from,
+          to: @pagination.to,
+          count: @pagination.total_count
+        )}
+      </p>
+      <div class="pagination__controls">
+        <.link
+          :if={@pagination.page > 1}
+          patch={jobs_page_path(@tenant_slug, @pagination.page - 1)}
+          class="pagination__btn"
+          id="jobs-pagination-prev"
+        >
+          <.icon name="hero-chevron-left" class="size-4" />
+          {gettext("Previous")}
+        </.link>
+        <span :if={@pagination.page <= 1} class="pagination__btn pagination__btn--disabled">
+          <.icon name="hero-chevron-left" class="size-4" />
+          {gettext("Previous")}
+        </span>
+
+        <span class="pagination__status">
+          {gettext("Page %{page} of %{total}",
+            page: @pagination.page,
+            total: @pagination.total_pages
+          )}
+        </span>
+
+        <.link
+          :if={@pagination.page < @pagination.total_pages}
+          patch={jobs_page_path(@tenant_slug, @pagination.page + 1)}
+          class="pagination__btn"
+          id="jobs-pagination-next"
+        >
+          {gettext("Next")}
+          <.icon name="hero-chevron-right" class="size-4" />
+        </.link>
+        <span
+          :if={@pagination.page >= @pagination.total_pages}
+          class="pagination__btn pagination__btn--disabled"
+        >
+          {gettext("Next")}
+          <.icon name="hero-chevron-right" class="size-4" />
+        </span>
+      </div>
+    </nav>
+    """
+  end
+
+  defp jobs_page_path(tenant_slug, page) when page <= 1,
+    do: ~p"/t/#{tenant_slug}/jobs"
+
+  defp jobs_page_path(tenant_slug, page),
+    do: ~p"/t/#{tenant_slug}/jobs?#{%{page: page}}"
 
   defp batch_error_message(jobs) do
     jobs

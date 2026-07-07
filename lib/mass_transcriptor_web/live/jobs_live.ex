@@ -2,26 +2,30 @@ defmodule MassTranscriptorWeb.JobsLive do
   use MassTranscriptorWeb, :live_view
 
   alias MassTranscriptor.Jobs
-  alias MassTranscriptor.Jobs.Grouping
+  alias MassTranscriptor.Jobs.{Grouping, Pagination}
 
   @poll_interval_ms 2_000
 
   @impl true
   def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> assign(:page_title, gettext("Jobs"))
-      |> assign(:active_tab, :jobs)
-      |> load_jobs()
-
     if connected?(socket), do: send(self(), :poll)
 
-    {:ok, socket}
+    {:ok,
+     socket
+     |> assign(:page_title, gettext("Jobs"))
+     |> assign(:active_tab, :jobs)}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, load_jobs(socket, params)}
   end
 
   @impl true
   def handle_info(:poll, socket) do
-    {:noreply, socket |> load_jobs() |> schedule_poll()}
+    params = %{"page" => Integer.to_string(socket.assigns.pagination.page)}
+
+    {:noreply, socket |> load_jobs(params) |> schedule_poll()}
   end
 
   @impl true
@@ -38,18 +42,25 @@ defmodule MassTranscriptorWeb.JobsLive do
         </header>
         <div class="page__body">
           <.jobs_table rows={@job_rows} tenant_slug={@tenant_slug} />
+          <.jobs_pagination
+            :if={@pagination.total_pages > 1}
+            pagination={@pagination}
+            tenant_slug={@tenant_slug}
+          />
         </div>
       </section>
     </Layouts.app>
     """
   end
 
-  defp load_jobs(socket) do
+  defp load_jobs(socket, params) do
     jobs = Jobs.list_job_summaries_for_tenant(socket.assigns.current_tenant.id)
+    pagination = jobs |> Grouping.build_job_list_rows() |> Pagination.paginate(params["page"])
 
     socket
     |> assign(:jobs, jobs)
-    |> assign(:job_rows, Grouping.build_job_list_rows(jobs))
+    |> assign(:pagination, pagination)
+    |> assign(:job_rows, pagination.rows)
   end
 
   defp schedule_poll(socket) do
