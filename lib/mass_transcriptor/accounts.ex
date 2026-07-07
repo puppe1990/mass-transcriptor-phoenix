@@ -10,6 +10,10 @@ defmodule MassTranscriptor.Accounts do
     slug |> String.trim() |> String.downcase()
   end
 
+  def normalize_email(email) when is_binary(email) do
+    email |> String.trim() |> String.downcase()
+  end
+
   def register_user(attrs) do
     with {:ok, tenant} <- create_tenant(attrs),
          {:ok, user} <- create_user(attrs),
@@ -19,6 +23,8 @@ defmodule MassTranscriptor.Accounts do
   end
 
   def authenticate_user(email, password) when is_binary(email) and is_binary(password) do
+    email = normalize_email(email)
+
     with %User{} = user <- get_user_by_email(email),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
       {:ok, user}
@@ -30,7 +36,7 @@ defmodule MassTranscriptor.Accounts do
   def get_user!(id), do: Repo.get!(User, id)
 
   def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
+    Repo.get_by(User, email: normalize_email(email))
   end
 
   def get_tenant_by_slug(slug) when is_binary(slug) do
@@ -60,10 +66,15 @@ defmodule MassTranscriptor.Accounts do
   end
 
   defp create_user(attrs) do
+    email =
+      attrs
+      |> Map.get(:email, Map.get(attrs, "email"))
+      |> normalize_email()
+
     %User{}
     |> User.registration_changeset(%{
       name: attrs[:name] || attrs["name"],
-      email: attrs[:email] || attrs["email"],
+      email: email,
       password: attrs[:password] || attrs["password"]
     })
     |> Repo.insert()

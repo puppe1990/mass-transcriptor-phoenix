@@ -79,6 +79,7 @@ defmodule MassTranscriptorWeb.AuthLiveTest do
     |> render_submit()
 
     assert render(view) =~ "Authentication failed"
+    assert render(view) =~ "create a workspace"
   end
 
   test "sign in redirects to tenant uploads", %{conn: conn} do

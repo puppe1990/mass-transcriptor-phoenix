@@ -99,8 +99,16 @@ defmodule MassTranscriptorWeb.AuthLive.SignIn do
       {:error, :invalid_credentials} ->
         {:noreply,
          socket
-         |> put_flash(:error, gettext("Authentication failed"))
-         |> assign(:form, to_form(%{"email" => email, "password" => ""}, as: :user))}
+         |> put_flash(
+           :error,
+           gettext(
+             "Authentication failed. Check your email and password, or create a workspace if this is your first time here."
+           )
+         )
+         |> assign(
+           :form,
+           to_form(%{"email" => Accounts.normalize_email(email), "password" => ""}, as: :user)
+         )}
     end
   end
 end

@@ -100,6 +100,13 @@ defmodule MassTranscriptor.AccountsTest do
       assert {:error, :invalid_credentials} =
                Accounts.authenticate_user("missing@example.com", "secret123")
     end
+
+    test "authenticates with normalized email casing and whitespace", %{user: user} do
+      assert {:ok, authenticated} =
+               Accounts.authenticate_user("  Owner@Example.COM  ", "secret123")
+
+      assert authenticated.id == user.id
+    end
   end
 
   describe "get_user_by_email/1" do
