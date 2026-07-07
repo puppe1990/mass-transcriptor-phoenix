@@ -24,139 +24,167 @@ defmodule MassTranscriptorWeb.UploadLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} tenant_slug={@tenant_slug} active_tab={@active_tab} locale={@locale}>
-      <header class="page__header">
-        <p class="page__eyebrow">{gettext("Uploads")}</p>
-        <h1 class="page__title">{gettext("Upload Audio")}</h1>
-        <p class="page__subtitle">
-          {gettext("Tenant: %{tenant_slug}", tenant_slug: @tenant_slug)}
-        </p>
-      </header>
-
-      <div
-        :if={@uploaded_jobs != []}
-        id="upload-success"
-        class="upload-success"
-        phx-mounted={scroll_into_view("#upload-success")}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        <span>
-          {queued_panel_message(@uploaded_jobs)}
-          <%= if batch_upload?(@uploaded_jobs) do %>
-            <.link navigate={~p"/t/#{@tenant_slug}/batches/#{hd(@uploaded_jobs).batch_id}"}>
-              {gettext("Open upload group")}
-            </.link>
-          <% else %>
-            <%= for {job, index} <- Enum.with_index(@uploaded_jobs) do %>
-              {if index > 0, do: ", "}
-              <.link navigate={~p"/t/#{@tenant_slug}/jobs/#{job.id}"}>
-                {gettext("Open job")} #{job.id}
-              </.link>
-            <% end %>
-          <% end %>
-        </span>
-      </div>
-
-      <form id="upload-form" phx-submit="upload" phx-change="validate">
-        <div
-          class={[
-            "upload-dropzone",
-            @uploads.audio.entries != [] && "upload-dropzone--active",
-            display_upload_error(assigns) && "upload-dropzone--error"
-          ]}
-          phx-drop-target={@uploads.audio.ref}
-        >
-          <p>{gettext("Drag and drop audio files here, or use the file picker below.")}</p>
-          <p class="upload-dropzone__hint">{UploadFormats.hint()}</p>
-          <label class="btn btn--primary">
-            {gettext("Audio file")}
-            <.live_file_input upload={@uploads.audio} class="sr-only" />
-          </label>
-        </div>
-
-        <div
-          :if={display_upload_error(assigns)}
-          id="upload-error"
-          class="upload-error upload-error--banner"
-          role="alert"
-          phx-mounted={scroll_into_view("#upload-error")}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <div>
-            <strong>{gettext("Cannot upload this file")}</strong>
-            <p>{display_upload_error(assigns)}</p>
+      <section class="page">
+        <header class="page__header">
+          <p class="page__eyebrow">{@tenant_slug}</p>
+          <h1 class="page__title">{gettext("Upload Audio")}</h1>
+          <p class="page__subtitle">
+            {gettext(
+              "Drop recordings here and we will transcribe them with AssemblyAI, then save each result as markdown in your workspace."
+            )}
+          </p>
+          <div class="page__actions">
+            <.link navigate={~p"/t/#{@tenant_slug}/jobs"}>{gettext("View jobs")}</.link>
           </div>
-        </div>
+        </header>
 
-        <p
-          :if={show_empty_hint?(assigns)}
-          id="upload-empty-hint"
-          class="upload-empty-hint"
-        >
-          {gettext("Select at least one audio file to start transcription.")}
-        </p>
-
-        <ul :if={@uploads.audio.entries != []} class="upload-file-list">
-          <li :for={entry <- @uploads.audio.entries} class="upload-file-list__item">
-            <span>{entry.client_name}</span>
-            <p :if={entry_error(entry)} class="upload-file-list__error">{entry_error(entry)}</p>
-            <button type="button" phx-click="cancel" phx-value-ref={entry.ref} class="btn--ghost">
-              {gettext("Remove %{name}", name: entry.client_name)}
-            </button>
-          </li>
-        </ul>
-
-        <div id="upload-submitting" class="upload-submitting" aria-live="polite">
-          <span class="upload-submitting__spinner" aria-hidden="true"></span>
-          <span>{gettext("Uploading and queuing transcription...")}</span>
-        </div>
-
-        <div class="upload-actions">
-          <button
-            :if={@uploads.audio.entries != []}
-            type="button"
-            class="btn--ghost"
-            phx-click="clear_all"
+        <div class="page__body">
+          <div
+            :if={@uploaded_jobs != []}
+            id="upload-success"
+            class="upload-success"
+            phx-mounted={scroll_into_view("#upload-success")}
           >
-            {gettext("Clean all")}
-          </button>
-          <button
-            id="upload-submit"
-            type="submit"
-            class="btn btn--primary"
-            disabled={not ready_to_submit?(assigns)}
-            aria-describedby={unless ready_to_submit?(assigns), do: "upload-empty-hint"}
-            phx-disable-with={gettext("Uploading...")}
-          >
-            {gettext("Start Transcription")}
-          </button>
+            <div class="upload-success__icon" aria-hidden="true">
+              <.icon name="hero-check-circle" class="size-5" />
+            </div>
+            <div class="upload-success__content">
+              <strong>{queued_panel_message(@uploaded_jobs)}</strong>
+              <p class="upload-success__links">
+                <%= if batch_upload?(@uploaded_jobs) do %>
+                  <.link navigate={~p"/t/#{@tenant_slug}/batches/#{hd(@uploaded_jobs).batch_id}"}>
+                    {gettext("Open upload group")}
+                  </.link>
+                <% else %>
+                  <%= for {job, index} <- Enum.with_index(@uploaded_jobs) do %>
+                    {if index > 0, do: ", "}
+                    <.link navigate={~p"/t/#{@tenant_slug}/jobs/#{job.id}"}>
+                      {gettext("Open job")} #{job.id}
+                    </.link>
+                  <% end %>
+                <% end %>
+              </p>
+            </div>
+          </div>
+
+          <form id="upload-form" class="upload-form" phx-submit="upload" phx-change="validate">
+            <div
+              class={[
+                "upload-dropzone",
+                @uploads.audio.entries != [] && "upload-dropzone--active",
+                display_upload_error(assigns) && "upload-dropzone--error"
+              ]}
+              phx-drop-target={@uploads.audio.ref}
+            >
+              <div class="upload-dropzone__icon" aria-hidden="true">
+                <.icon name="hero-arrow-up-tray" class="size-7" />
+              </div>
+              <p class="upload-dropzone__title">
+                {gettext("Drag and drop audio files here")}
+              </p>
+              <p class="upload-dropzone__hint">
+                {gettext("%{formats} · up to %{count} files · %{size} each",
+                  formats: UploadFormats.hint(),
+                  count: 20,
+                  size: "100 MB"
+                )}
+              </p>
+              <label class="btn btn--primary upload-dropzone__browse">
+                {gettext("Browse files")}
+                <.live_file_input upload={@uploads.audio} class="upload-file-input" />
+              </label>
+            </div>
+
+            <div
+              :if={display_upload_error(assigns)}
+              id="upload-error"
+              class="upload-error upload-error--banner"
+              role="alert"
+              phx-mounted={scroll_into_view("#upload-error")}
+            >
+              <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
+              <div>
+                <strong>{gettext("Cannot upload this file")}</strong>
+                <p>{display_upload_error(assigns)}</p>
+              </div>
+            </div>
+
+            <p
+              :if={show_empty_hint?(assigns)}
+              id="upload-empty-hint"
+              class="upload-empty-hint"
+            >
+              {gettext("Select at least one audio file to start transcription.")}
+            </p>
+
+            <div :if={@uploads.audio.entries != []} class="upload-queue">
+              <div class="upload-file-list__toolbar">
+                <p class="upload-file-list__count">
+                  {gettext("%{count} file(s) ready",
+                    count: length(@uploads.audio.entries)
+                  )}
+                </p>
+                <button
+                  type="button"
+                  class="upload-file-list__clear"
+                  phx-click="clear_all"
+                >
+                  {gettext("Clear all")}
+                </button>
+              </div>
+
+              <ul class="upload-file-list">
+                <li :for={entry <- @uploads.audio.entries} class="upload-file-card">
+                  <div class="upload-file-card__icon" aria-hidden="true">
+                    <.icon name="hero-musical-note" class="size-5" />
+                  </div>
+                  <div class="upload-file-card__body">
+                    <p class="upload-file-card__name">{entry.client_name}</p>
+                    <p class="upload-file-card__meta">
+                      {format_file_size(entry.client_size)}
+                      <%= if entry.client_type && entry.client_type != "" do %>
+                        <span aria-hidden="true"> · </span>
+                        {entry.client_type}
+                      <% end %>
+                    </p>
+                    <p :if={entry_error(entry)} class="upload-file-list__error">
+                      {entry_error(entry)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="upload-file-card__remove"
+                    phx-click="cancel"
+                    phx-value-ref={entry.ref}
+                    aria-label={gettext("Remove %{name}", name: entry.client_name)}
+                  >
+                    <.icon name="hero-x-mark" class="size-4" />
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div id="upload-submitting" class="upload-submitting" aria-live="polite">
+              <span class="upload-submitting__spinner" aria-hidden="true"></span>
+              <span>{gettext("Uploading and queuing transcription...")}</span>
+            </div>
+
+            <div class="upload-actions">
+              <button
+                id="upload-submit"
+                type="submit"
+                class="btn btn--primary upload-actions__submit"
+                disabled={not ready_to_submit?(assigns)}
+                aria-describedby={unless ready_to_submit?(assigns), do: "upload-empty-hint"}
+                phx-disable-with={gettext("Uploading...")}
+              >
+                <.icon name="hero-play" class="size-4" />
+                {gettext("Start Transcription")}
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </section>
     </Layouts.app>
     """
   end
@@ -311,4 +339,15 @@ defmodule MassTranscriptorWeb.UploadLive do
   defp maybe_flash_upload_error(socket, message) do
     put_flash(socket, :error, message)
   end
+
+  defp format_file_size(bytes) when is_integer(bytes) and bytes >= 1_000_000 do
+    "#{Float.round(bytes / 1_000_000, 1)} MB"
+  end
+
+  defp format_file_size(bytes) when is_integer(bytes) and bytes >= 1_000 do
+    "#{Float.round(bytes / 1_000, 1)} KB"
+  end
+
+  defp format_file_size(bytes) when is_integer(bytes), do: "#{bytes} B"
+  defp format_file_size(_), do: "—"
 end

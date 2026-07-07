@@ -33,7 +33,7 @@ defmodule MassTranscriptorWeb.UploadLiveTest do
     assert has_element?(view, "a[href=\"/t/#{tenant.slug}/jobs/#{job.id}\"]")
     assert html =~ "Job queued"
     assert has_element?(view, "#flash-info.flash-toast--info")
-    refute has_element?(view, ".upload-file-list__item")
+    refute has_element?(view, ".upload-file-card")
   end
 
   test "renders submitting indicator markup for phx-submit-loading", %{conn: conn, tenant: tenant} do

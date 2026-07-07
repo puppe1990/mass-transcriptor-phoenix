@@ -465,24 +465,28 @@ button.btn--secondary:hover:not(:disabled) {
   position: relative;
   display: grid;
   place-items: center;
-  gap: 12px;
-  min-height: 200px;
-  padding: 40px 32px;
+  gap: 14px;
+  min-height: 240px;
+  padding: 44px 32px 40px;
   border-radius: var(--radius-lg);
   border: 2px dashed var(--color-border-strong);
-  background: rgba(255, 255, 255, 0.015);
+  background:
+    radial-gradient(circle at top, rgba(200, 245, 96, 0.06), transparent 55%),
+    rgba(255, 255, 255, 0.015);
   text-align: center;
-  cursor: pointer;
   transition:
     border-color var(--transition),
     background var(--transition),
-    transform var(--transition);
+    box-shadow var(--transition);
 }
 
 .upload-dropzone:hover,
 .upload-dropzone--active {
   border-color: rgba(200, 245, 96, 0.45);
-  background: var(--color-accent-muted);
+  background:
+    radial-gradient(circle at top, rgba(200, 245, 96, 0.12), transparent 58%),
+    var(--color-accent-muted);
+  box-shadow: 0 0 0 1px rgba(200, 245, 96, 0.08);
 }
 
 .upload-dropzone--error {
@@ -511,7 +515,18 @@ button.btn--secondary:hover:not(:disabled) {
   margin: 0;
   font-size: 14px;
   color: var(--color-text-muted);
-  max-width: 32ch;
+  max-width: 42ch;
+  line-height: 1.5;
+}
+
+.upload-dropzone__browse {
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.upload-queue {
+  display: grid;
+  gap: 12px;
 }
 
 .upload-file-input {
@@ -637,15 +652,62 @@ button.btn--secondary:hover:not(:disabled) {
 
 .upload-success {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 14px 18px;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 18px 20px;
   border-radius: var(--radius-md);
   background: var(--color-accent-muted);
-  border: 1px solid rgba(200, 245, 96, 0.2);
+  border: 1px solid rgba(200, 245, 96, 0.22);
   font-size: 14px;
   color: var(--color-accent);
+}
+
+.upload-success__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(200, 245, 96, 0.14);
+  flex-shrink: 0;
+}
+
+.upload-success__content {
+  min-width: 0;
+}
+
+.upload-success__content strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+.upload-success__links {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.upload-success__links a {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.upload-actions__submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 220px;
+  justify-content: center;
 }
 
 .upload-submitting {
