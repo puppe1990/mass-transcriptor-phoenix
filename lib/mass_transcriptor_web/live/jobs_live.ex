@@ -36,11 +36,20 @@ defmodule MassTranscriptorWeb.JobsLive do
         <header class="page__header">
           <p class="page__eyebrow">{@tenant_slug}</p>
           <h1 class="page__title">{gettext("Jobs")}</h1>
+          <p class="page__subtitle">
+            {gettext(
+              "Track transcription progress, open completed markdown results, and retry failed runs from one place."
+            )}
+          </p>
           <div class="page__actions">
-            <.link navigate={~p"/t/#{@tenant_slug}/uploads"}>{gettext("New upload")}</.link>
+            <.link navigate={~p"/t/#{@tenant_slug}/uploads"} class="btn btn--primary">
+              <.icon name="hero-arrow-up-tray" class="size-4" />
+              {gettext("New upload")}
+            </.link>
           </div>
         </header>
         <div class="page__body">
+          <.jobs_stats :if={@job_stats.total > 0} stats={@job_stats} />
           <.jobs_table rows={@job_rows} tenant_slug={@tenant_slug} />
           <.jobs_pagination
             :if={@pagination.total_pages > 1}
@@ -59,8 +68,21 @@ defmodule MassTranscriptorWeb.JobsLive do
 
     socket
     |> assign(:jobs, jobs)
+    |> assign(:job_stats, job_stats(jobs))
     |> assign(:pagination, pagination)
     |> assign(:job_rows, pagination.rows)
+  end
+
+  defp job_stats(jobs) do
+    frequencies = Enum.frequencies_by(jobs, & &1.status)
+
+    %{
+      total: length(jobs),
+      queued: Map.get(frequencies, "queued", 0),
+      processing: Map.get(frequencies, "processing", 0),
+      completed: Map.get(frequencies, "completed", 0),
+      failed: Map.get(frequencies, "failed", 0)
+    }
   end
 
   defp schedule_poll(socket) do

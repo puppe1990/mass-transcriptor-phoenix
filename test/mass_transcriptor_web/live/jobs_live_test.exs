@@ -34,7 +34,8 @@ defmodule MassTranscriptorWeb.JobsLiveTest do
 
     assert html =~ "sample.wav"
     assert html =~ "assemblyai"
-    assert has_element?(view, "#jobs-table")
+    assert has_element?(view, "#jobs-list")
+    assert has_element?(view, "#jobs-stats")
     assert has_element?(view, "span.status-#{job.status}")
     assert has_element?(view, "a[href=\"/t/#{tenant.slug}/jobs/#{job.id}\"]")
   end
@@ -69,7 +70,7 @@ defmodule MassTranscriptorWeb.JobsLiveTest do
     {:ok, view, html} = live(conn, ~p"/t/#{tenant.slug}/jobs")
 
     assert html =~ "ASSEMBLYAI_API_KEY"
-    assert has_element?(view, "#job-row-#{job.id} .jobs-table__error")
+    assert has_element?(view, "#job-row-#{job.id} .jobs-row__error")
   end
 
   test "paginates job rows", %{conn: conn, tenant: tenant} do

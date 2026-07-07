@@ -128,6 +128,35 @@ defmodule MassTranscriptorWeb.UIComponents do
     """
   end
 
+  attr :stats, :map, required: true
+
+  def jobs_stats(assigns) do
+    ~H"""
+    <div class="jobs-stats" id="jobs-stats">
+      <div class="jobs-stats__card jobs-stats__card--total">
+        <span class="jobs-stats__value">{@stats.total}</span>
+        <span class="jobs-stats__label">{gettext("Total")}</span>
+      </div>
+      <div class="jobs-stats__card jobs-stats__card--queued">
+        <span class="jobs-stats__value">{@stats.queued}</span>
+        <span class="jobs-stats__label">{gettext("Queued")}</span>
+      </div>
+      <div class="jobs-stats__card jobs-stats__card--processing">
+        <span class="jobs-stats__value">{@stats.processing}</span>
+        <span class="jobs-stats__label">{gettext("Processing")}</span>
+      </div>
+      <div class="jobs-stats__card jobs-stats__card--completed">
+        <span class="jobs-stats__value">{@stats.completed}</span>
+        <span class="jobs-stats__label">{gettext("Completed")}</span>
+      </div>
+      <div class="jobs-stats__card jobs-stats__card--failed">
+        <span class="jobs-stats__value">{@stats.failed}</span>
+        <span class="jobs-stats__label">{gettext("Failed")}</span>
+      </div>
+    </div>
+    """
+  end
+
   attr :rows, :list, required: true
   attr :tenant_slug, :string, required: true
 
@@ -136,92 +165,71 @@ defmodule MassTranscriptorWeb.UIComponents do
     <%= if @rows == [] do %>
       <div class="jobs-empty" id="jobs-empty">
         <div class="jobs-empty__icon" aria-hidden="true">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <line x1="8" y1="6" x2="21" y2="6" />
-            <line x1="8" y1="12" x2="21" y2="12" />
-            <line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" />
-            <line x1="3" y1="12" x2="3.01" y2="12" />
-            <line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
+          <.icon name="hero-queue-list" class="size-7" />
         </div>
         <p class="jobs-empty__title">{gettext("No jobs yet")}</p>
         <p class="jobs-empty__text">
           {gettext("Upload an audio file to start your first transcription.")}
         </p>
-        <.link navigate={~p"/t/#{@tenant_slug}/uploads"}>{gettext("New upload")}</.link>
+        <.link navigate={~p"/t/#{@tenant_slug}/uploads"} class="btn btn--primary">
+          <.icon name="hero-arrow-up-tray" class="size-4" />
+          {gettext("New upload")}
+        </.link>
       </div>
     <% else %>
-      <div class="jobs-table-wrap">
-        <table class="jobs-table" id="jobs-table">
-          <thead>
-            <tr>
-              <th>{gettext("File")}</th>
-              <th>{gettext("Provider")}</th>
-              <th>{gettext("Status")}</th>
-              <th>{gettext("Created")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <%= for row <- @rows do %>
-              <%= if row.kind == :batch do %>
-                <tr id={"job-batch-#{row.batch_id}"}>
-                  <td>
-                    <.link
-                      class="jobs-table__file-link"
-                      navigate={~p"/t/#{@tenant_slug}/batches/#{row.batch_id}"}
-                    >
-                      {gettext("%{count} audios", count: length(row.jobs))}
-                    </.link>
-                    <p class="jobs-table__batch-files">
-                      {Enum.map_join(row.jobs, " · ", & &1.original_filename)}
-                    </p>
-                  </td>
-                  <td>
-                    <span class="jobs-table__provider">{hd(row.jobs).provider_key}</span>
-                  </td>
-                  <td>
-                    <.job_status_badge status={Grouping.summarize_batch_status(row.jobs)} />
-                    <p :if={batch_error_message(row.jobs)} class="jobs-table__error">
-                      {batch_error_message(row.jobs)}
-                    </p>
-                  </td>
-                  <td class="jobs-table__date">{format_datetime(row.created_at)}</td>
-                </tr>
-              <% else %>
-                <tr id={"job-row-#{row.job.id}"}>
-                  <td>
-                    <.link
-                      class="jobs-table__file-link"
-                      navigate={~p"/t/#{@tenant_slug}/jobs/#{row.job.id}"}
-                    >
-                      {row.job.original_filename}
-                    </.link>
-                  </td>
-                  <td>
-                    <span class="jobs-table__provider">{row.job.provider_key}</span>
-                  </td>
-                  <td>
-                    <.job_status_badge status={row.job.status} />
-                    <p :if={row.job.error_message} class="jobs-table__error">
-                      {row.job.error_message}
-                    </p>
-                  </td>
-                  <td class="jobs-table__date">{format_datetime(row.job.created_at)}</td>
-                </tr>
-              <% end %>
-            <% end %>
-          </tbody>
-        </table>
+      <div class="jobs-list" id="jobs-list">
+        <%= for row <- @rows do %>
+          <%= if row.kind == :batch do %>
+            <.link
+              navigate={~p"/t/#{@tenant_slug}/batches/#{row.batch_id}"}
+              class="jobs-row jobs-row--batch"
+              id={"job-batch-#{row.batch_id}"}
+            >
+              <div class="jobs-row__icon" aria-hidden="true">
+                <.icon name="hero-folder" class="size-5" />
+              </div>
+              <div class="jobs-row__main">
+                <p class="jobs-row__title">
+                  {gettext("%{count} audios", count: length(row.jobs))}
+                </p>
+                <p class="jobs-row__subtitle">
+                  {Enum.map_join(row.jobs, " · ", & &1.original_filename)}
+                </p>
+                <p :if={batch_error_message(row.jobs)} class="jobs-row__error">
+                  {batch_error_message(row.jobs)}
+                </p>
+              </div>
+              <div class="jobs-row__aside">
+                <span class="jobs-row__provider">{hd(row.jobs).provider_key}</span>
+                <.job_status_badge status={Grouping.summarize_batch_status(row.jobs)} />
+                <span class="jobs-row__date">{format_datetime(row.created_at)}</span>
+              </div>
+              <.icon name="hero-chevron-right" class="jobs-row__chevron size-4" />
+            </.link>
+          <% else %>
+            <.link
+              navigate={~p"/t/#{@tenant_slug}/jobs/#{row.job.id}"}
+              class="jobs-row"
+              id={"job-row-#{row.job.id}"}
+            >
+              <div class="jobs-row__icon" aria-hidden="true">
+                <.icon name="hero-musical-note" class="size-5" />
+              </div>
+              <div class="jobs-row__main">
+                <p class="jobs-row__title">{row.job.original_filename}</p>
+                <p :if={row.job.error_message} class="jobs-row__error">
+                  {row.job.error_message}
+                </p>
+              </div>
+              <div class="jobs-row__aside">
+                <span class="jobs-row__provider">{row.job.provider_key}</span>
+                <.job_status_badge status={row.job.status} />
+                <span class="jobs-row__date">{format_datetime(row.job.created_at)}</span>
+              </div>
+              <.icon name="hero-chevron-right" class="jobs-row__chevron size-4" />
+            </.link>
+          <% end %>
+        <% end %>
       </div>
     <% end %>
     """
