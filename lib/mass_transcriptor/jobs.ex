@@ -19,49 +19,56 @@ defmodule MassTranscriptor.Jobs do
   alias MassTranscriptor.Workers.TranscribeJob
 
   def create_uploads_and_jobs(%Tenant{} = tenant, files) when is_list(files) do
-    batch = maybe_create_batch(tenant, files)
+    Repo.checkout(
+      fn ->
+        batch = maybe_create_batch!(tenant, files)
 
-    Enum.map(files, fn file ->
-      {:ok, upload} =
-        %Upload{}
-        |> Ecto.Changeset.change(%{
-          tenant_id: tenant.id,
-          original_filename: file.filename,
-          mime_type: file.mime_type,
-          size_bytes: file.size,
-          audio_path: "pending"
-        })
-        |> Repo.insert()
-
-      audio_path = Storage.write_audio(tenant.slug, upload.id, file.filename, file.content)
-
-      {:ok, upload} =
-        upload
-        |> Upload.audio_changeset(%{audio_path: audio_path})
-        |> Repo.update()
-
-      {:ok, job} =
-        %TranscriptionJob{}
-        |> TranscriptionJob.changeset(%{
-          tenant_id: tenant.id,
-          upload_id: upload.id,
-          batch_id: batch && batch.id,
-          provider_key: tenant.default_provider,
-          status: "queued"
-        })
-        |> Repo.insert()
-
-      enqueue_transcription(job)
-
-      job
-    end)
+        Enum.map(files, &create_upload_and_job!(tenant, batch, &1))
+      end,
+      timeout: :timer.seconds(60)
+    )
   end
 
-  defp maybe_create_batch(_tenant, [_single]), do: nil
+  defp maybe_create_batch!(_tenant, [_single]), do: nil
 
-  defp maybe_create_batch(tenant, _files) do
+  defp maybe_create_batch!(tenant, _files) do
     {:ok, batch} = Repo.insert(%JobBatch{tenant_id: tenant.id})
     batch
+  end
+
+  defp create_upload_and_job!(tenant, batch, file) do
+    {:ok, upload} =
+      %Upload{}
+      |> Ecto.Changeset.change(%{
+        tenant_id: tenant.id,
+        original_filename: file.filename,
+        mime_type: file.mime_type,
+        size_bytes: file.size,
+        audio_path: "pending"
+      })
+      |> Repo.insert()
+
+    audio_path = Storage.write_audio(tenant.slug, upload.id, file.filename, file.content)
+
+    {:ok, upload} =
+      upload
+      |> Upload.audio_changeset(%{audio_path: audio_path})
+      |> Repo.update()
+
+    {:ok, job} =
+      %TranscriptionJob{}
+      |> TranscriptionJob.changeset(%{
+        tenant_id: tenant.id,
+        upload_id: upload.id,
+        batch_id: batch && batch.id,
+        provider_key: tenant.default_provider,
+        status: "queued"
+      })
+      |> Repo.insert()
+
+    {:ok, _oban_job} = enqueue_transcription(job)
+
+    job
   end
 
   defp enqueue_transcription(job) do

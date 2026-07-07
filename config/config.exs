@@ -31,7 +31,7 @@ config :mass_transcriptor, Oban,
   repo: MassTranscriptor.Repo,
   engine: Oban.Engines.Lite,
   notifier: Oban.Notifiers.Isolated,
-  queues: [transcription: 5],
+  queues: [transcription: 2],
   plugins: [Oban.Plugins.Pruner]
 
 # Configure the endpoint

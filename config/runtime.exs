@@ -42,12 +42,18 @@ if config_env() == :prod do
         auth_token: turso_token,
         database: System.get_env("DATABASE_PATH", "replica.db"),
         sync: true,
-        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
+        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "2"),
+        busy_timeout: 30_000,
+        timeout: 30_000,
+        queue_target: 100,
+        queue_interval: 1000
       ]
     else
       [
         database: System.get_env("DATABASE_PATH") || "build.db",
-        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
+        pool_size: String.to_integer(System.get_env("POOL_SIZE") || "2"),
+        busy_timeout: 30_000,
+        timeout: 30_000
       ]
     end
 
