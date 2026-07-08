@@ -80,6 +80,10 @@ defmodule MassTranscriptor.Jobs do
         file.source_path
       )
 
+      if is_binary(file.source_path) and File.exists?(file.source_path) do
+        File.rm!(file.source_path)
+      end
+
       upload
     else
       audio_path = Storage.write_audio(tenant.slug, upload.id, file.filename, file.content)
@@ -96,7 +100,9 @@ defmodule MassTranscriptor.Jobs do
   def process_video_conversion(upload_id) do
     upload = fetch_upload!(upload_id) |> Repo.preload(:tenant)
     job = get_job_by_upload!(upload_id)
-    source_path = Storage.build_source_path(upload.tenant.slug, upload.id, upload.original_filename)
+
+    source_path =
+      Storage.build_source_path(upload.tenant.slug, upload.id, upload.original_filename)
 
     with {:ok, temp_mp3} <- VideoConverter.to_mp3(source_path),
          audio_path <-
@@ -255,7 +261,6 @@ defmodule MassTranscriptor.Jobs do
   end
 
   def retryable?(%{status: "failed"}), do: true
-  def retryable?(%TranscriptionJob{status: "failed"}), do: true
   def retryable?(job), do: stuck?(job)
 
   def stuck?(%{status: status, inserted_at: inserted_at, started_at: started_at}) do

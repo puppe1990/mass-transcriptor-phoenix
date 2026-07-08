@@ -3,8 +3,6 @@ defmodule MassTranscriptor.Media.VideoConverter do
 
   alias MassTranscriptorWeb.UploadFormats
 
-  @ffmpeg_timeout_ms :timer.minutes(10)
-
   def available? do
     not is_nil(System.find_executable("ffmpeg")) and not is_nil(System.find_executable("ffprobe"))
   end
@@ -36,7 +34,6 @@ defmodule MassTranscriptor.Media.VideoConverter do
       end
     else
       {_output, _code} -> {:error, "Could not read video duration"}
-      {:error, message} -> {:error, message}
     end
   end
 
@@ -98,10 +95,10 @@ defmodule MassTranscriptor.Media.VideoConverter do
   end
 
   defp run_ffmpeg(args) do
-    System.cmd("ffmpeg", args, stderr_to_stdout: true, timeout: @ffmpeg_timeout_ms)
+    System.cmd("ffmpeg", args, stderr_to_stdout: true)
   end
 
   defp run_ffprobe(args) do
-    System.cmd("ffprobe", args, stderr_to_stdout: true, timeout: 30_000)
+    System.cmd("ffprobe", args, stderr_to_stdout: true)
   end
 end
