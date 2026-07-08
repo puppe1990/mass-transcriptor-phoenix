@@ -430,10 +430,104 @@ defmodule MassTranscriptorWeb.CoreComponents do
   attr :name, :string, required: true
   attr :class, :any, default: "size-4"
 
-  def icon(%{name: "hero-" <> _} = assigns) do
+  def icon(assigns) do
     ~H"""
-    <span class={[@name, @class]} />
+    <svg
+      class={["icon", @class]}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      {icon_paths(@name)}
+    </svg>
     """
+  end
+
+  defp icon_paths("hero-arrow-up-tray") do
+    Phoenix.HTML.raw("""
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+    """)
+  end
+
+  defp icon_paths("hero-check-circle") do
+    Phoenix.HTML.raw("""
+    <path d="M9 12l2 2 4-4" />
+    <circle cx="12" cy="12" r="10" />
+    """)
+  end
+
+  defp icon_paths("hero-exclamation-circle") do
+    Phoenix.HTML.raw("""
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+    """)
+  end
+
+  defp icon_paths("hero-musical-note") do
+    Phoenix.HTML.raw("""
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+    """)
+  end
+
+  defp icon_paths("hero-x-mark") do
+    Phoenix.HTML.raw("""
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+    """)
+  end
+
+  defp icon_paths("hero-play") do
+    Phoenix.HTML.raw("""
+    <polygon points="5 3 19 12 5 21 5 3" />
+    """)
+  end
+
+  defp icon_paths("hero-queue-list") do
+    Phoenix.HTML.raw("""
+    <path d="M3.625 4.5h12.75" />
+    <path d="M3.625 9.75h12.75" />
+    <path d="M3.625 15h12.75" />
+    <path d="M3.625 19.5h12.75" />
+    """)
+  end
+
+  defp icon_paths("hero-folder") do
+    Phoenix.HTML.raw("""
+    <path d="M2 7.5V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9.5a2 2 0 0 0-2-2h-6l-2-2H4a2 2 0 0 0-2 2z" />
+    """)
+  end
+
+  defp icon_paths("hero-chevron-right") do
+    Phoenix.HTML.raw("""
+    <polyline points="9 18 15 12 9 6" />
+    """)
+  end
+
+  defp icon_paths("hero-chevron-left") do
+    Phoenix.HTML.raw("""
+    <polyline points="15 18 9 12 15 6" />
+    """)
+  end
+
+  defp icon_paths("hero-arrow-path") do
+    Phoenix.HTML.raw("""
+    <path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+    """)
+  end
+
+  defp icon_paths(_unknown) do
+    Phoenix.HTML.raw("""
+    <circle cx="12" cy="12" r="10" />
+    """)
   end
 
   ## JS Commands

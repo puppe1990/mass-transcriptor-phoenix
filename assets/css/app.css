@@ -130,6 +130,53 @@ h3 {
   line-height: 1.1;
 }
 
+/* ── Icons ─────────────────────────────────────────────────── */
+.icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.size-3 {
+  width: 12px;
+  height: 12px;
+}
+
+.size-4 {
+  width: 16px;
+  height: 16px;
+}
+
+.size-5 {
+  width: 20px;
+  height: 20px;
+}
+
+.size-7 {
+  width: 28px;
+  height: 28px;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.motion-safe\:animate-spin {
+  animation: icon-spin 1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe\:animate-spin {
+    animation: none;
+  }
+}
+
 /* ── Buttons ───────────────────────────────────────────────── */
 .btn,
 button {

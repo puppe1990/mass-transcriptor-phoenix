@@ -36,6 +36,8 @@ defmodule MassTranscriptorWeb.JobsLiveTest do
     assert html =~ "assemblyai"
     assert has_element?(view, "#jobs-list")
     assert has_element?(view, "#jobs-stats")
+    assert has_element?(view, "#jobs-list svg.icon")
+    assert has_element?(view, "#job-row-#{job.id} svg.icon")
     assert has_element?(view, "span.status-#{job.status}")
     assert has_element?(view, "a[href=\"/t/#{tenant.slug}/jobs/#{job.id}\"]")
   end
