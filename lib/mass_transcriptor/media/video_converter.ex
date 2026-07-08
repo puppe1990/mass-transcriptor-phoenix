@@ -10,9 +10,8 @@ defmodule MassTranscriptor.Media.VideoConverter do
   def to_mp3(source_path) when is_binary(source_path) do
     with :ok <- ensure_available(),
          {:ok, duration} <- probe_duration(source_path),
-         :ok <- validate_duration(duration),
-         {:ok, output_path} <- convert(source_path) do
-      {:ok, output_path}
+         :ok <- validate_duration(duration) do
+      convert(source_path)
     end
   end
 

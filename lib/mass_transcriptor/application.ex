@@ -5,6 +5,8 @@ defmodule MassTranscriptor.Application do
 
   use Application
 
+  alias MassTranscriptor.Media.VideoConverter
+
   @impl true
   def start(_type, _args) do
     warn_missing_assemblyai_key()
@@ -56,7 +58,7 @@ defmodule MassTranscriptor.Application do
   end
 
   defp warn_missing_video_tools do
-    unless MassTranscriptor.Media.VideoConverter.available?() do
+    unless VideoConverter.available?() do
       require Logger
 
       Logger.warning("""
