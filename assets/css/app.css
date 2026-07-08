@@ -779,33 +779,42 @@ label.btn--secondary:hover {
   font-weight: 600;
 }
 
-.upload-actions {
+.upload-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding-top: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
   border-top: 1px solid var(--color-border);
 }
 
-.upload-actions__submit {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 220px;
-  justify-content: center;
+.upload-footer__lead {
+  flex: 1;
+  min-width: 0;
+}
+
+.upload-footer__hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.upload-footer__submit {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+  padding: 12px 22px;
+  white-space: nowrap;
 }
 
 .upload-submitting {
   display: none;
   align-items: center;
   gap: 10px;
-  margin-top: 16px;
-  padding: 14px 18px;
-  border-radius: var(--radius-md);
-  background: rgba(200, 245, 96, 0.08);
-  border: 1px solid rgba(200, 245, 96, 0.18);
-  color: var(--color-accent);
+  margin-top: 10px;
   font-size: 14px;
+  color: var(--color-accent);
 }
 
 #upload-form.phx-submit-loading .upload-submitting {
@@ -908,15 +917,10 @@ label.btn--secondary:hover {
   line-height: 1.5;
 }
 
-.upload-empty-hint {
-  margin: 14px 0 0;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px dashed var(--color-border-strong);
-  color: var(--color-text-muted);
-  font-size: 14px;
-  text-align: center;
+.upload-form .btn,
+.upload-form button {
+  width: auto;
+  max-width: 100%;
 }
 
 /* ── Auth shell ────────────────────────────────────────────── */
@@ -1875,6 +1879,16 @@ label.btn--secondary:hover {
 
   .jobs-row__chevron {
     display: none;
+  }
+
+  .upload-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .upload-footer__submit {
+    width: 100%;
+    justify-content: center;
   }
 }
 

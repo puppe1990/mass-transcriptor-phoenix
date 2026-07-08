@@ -109,14 +109,6 @@ defmodule MassTranscriptorWeb.UploadLive do
               </div>
             </div>
 
-            <p
-              :if={show_empty_hint?(assigns)}
-              id="upload-empty-hint"
-              class="upload-empty-hint"
-            >
-              {gettext("Select at least one audio file to start transcription.")}
-            </p>
-
             <div :if={@uploads.audio.entries != []} class="upload-queue">
               <div class="upload-file-list__toolbar">
                 <p class="upload-file-list__count">
@@ -164,16 +156,29 @@ defmodule MassTranscriptorWeb.UploadLive do
               </ul>
             </div>
 
-            <div id="upload-submitting" class="upload-submitting" aria-live="polite">
-              <span class="upload-submitting__spinner" aria-hidden="true"></span>
-              <span>{gettext("Uploading and queuing transcription...")}</span>
-            </div>
-
-            <div class="upload-actions">
+            <div class="upload-footer">
+              <div class="upload-footer__lead">
+                <p
+                  :if={show_empty_hint?(assigns)}
+                  id="upload-empty-hint"
+                  class="upload-footer__hint"
+                >
+                  {gettext("Select at least one audio file to start transcription.")}
+                </p>
+                <p :if={@uploads.audio.entries != []} class="upload-footer__hint">
+                  {gettext("%{count} file(s) ready to transcribe",
+                    count: length(@uploads.audio.entries)
+                  )}
+                </p>
+                <div id="upload-submitting" class="upload-submitting" aria-live="polite">
+                  <span class="upload-submitting__spinner" aria-hidden="true"></span>
+                  <span>{gettext("Uploading and queuing transcription...")}</span>
+                </div>
+              </div>
               <button
                 id="upload-submit"
                 type="submit"
-                class="btn btn--primary upload-actions__submit"
+                class="btn btn--primary upload-footer__submit"
                 disabled={not ready_to_submit?(assigns)}
                 aria-describedby={unless ready_to_submit?(assigns), do: "upload-empty-hint"}
                 phx-disable-with={gettext("Uploading...")}
