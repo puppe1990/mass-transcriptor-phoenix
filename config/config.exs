@@ -32,7 +32,12 @@ config :mass_transcriptor, Oban,
   engine: Oban.Engines.Lite,
   notifier: Oban.Notifiers.Isolated,
   queues: [transcription: 2],
-  plugins: [Oban.Plugins.Pruner]
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(10)}
+  ]
+
+config :mass_transcriptor, :job_stuck_after_minutes, 5
 
 # Configure the endpoint
 config :mass_transcriptor, MassTranscriptorWeb.Endpoint,

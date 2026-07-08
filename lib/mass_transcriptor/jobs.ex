@@ -17,6 +17,7 @@ defmodule MassTranscriptor.Jobs do
   alias MassTranscriptor.Storage
   alias MassTranscriptor.Transcription.{AssemblyAI, Markdown}
   alias MassTranscriptor.Workers.TranscribeJob
+  alias Oban.Job, as: ObanJob
 
   def create_uploads_and_jobs(%Tenant{} = tenant, files) when is_list(files) do
     Repo.checkout(
@@ -169,26 +170,93 @@ defmodule MassTranscriptor.Jobs do
       original_filename: job.upload.original_filename,
       error_message: job.error_message,
       markdown_path: result && result.markdown_path,
-      transcript_text: result && result.transcript_text
+      transcript_text: result && result.transcript_text,
+      inserted_at: job.inserted_at,
+      started_at: job.started_at,
+      retryable?: retryable?(job),
+      stuck?: stuck?(job)
     }
   end
 
+  def retryable?(%{status: "failed"}), do: true
+  def retryable?(%TranscriptionJob{status: "failed"}), do: true
+  def retryable?(job), do: stuck?(job)
+
+  def stuck?(%{status: status, inserted_at: inserted_at, started_at: started_at}) do
+    stuck_by_status?(status, inserted_at, started_at)
+  end
+
+  def stuck?(%TranscriptionJob{} = job) do
+    stuck_by_status?(job.status, job.inserted_at, job.started_at)
+  end
+
   def retry_job(%TranscriptionJob{status: "failed"} = job) do
+    requeue_job(job, reset_timestamps: true)
+  end
+
+  def retry_job(%TranscriptionJob{} = job) do
+    if stuck?(job) do
+      requeue_job(job, reset_timestamps: job.status == "processing")
+    else
+      {:error, :not_retryable}
+    end
+  end
+
+  defp requeue_job(job, opts) do
+    cancel_oban_jobs_for(job.id)
+
+    changes =
+      if opts[:reset_timestamps] do
+        %{status: "queued", error_message: nil, started_at: nil, completed_at: nil}
+      else
+        %{status: "queued", error_message: nil}
+      end
+
     with {:ok, job} <-
            job
-           |> TranscriptionJob.changeset(%{
-             status: "queued",
-             error_message: nil,
-             started_at: nil,
-             completed_at: nil
-           })
+           |> TranscriptionJob.changeset(changes)
            |> Repo.update(),
          {:ok, _oban_job} <- enqueue_transcription(job) do
       {:ok, job}
     end
   end
 
-  def retry_job(%TranscriptionJob{}), do: {:error, :not_failed}
+  defp stuck_by_status?("queued", inserted_at, _started_at) do
+    minutes_since(inserted_at) >= stuck_after_minutes()
+  end
+
+  defp stuck_by_status?("processing", _inserted_at, started_at) when not is_nil(started_at) do
+    minutes_since(started_at) >= stuck_after_minutes()
+  end
+
+  defp stuck_by_status?(_, _, _), do: false
+
+  defp stuck_after_minutes do
+    Application.get_env(:mass_transcriptor, :job_stuck_after_minutes, 5)
+  end
+
+  defp minutes_since(%DateTime{} = datetime) do
+    DateTime.diff(DateTime.utc_now(), datetime, :minute)
+  end
+
+  defp cancel_oban_jobs_for(job_id) do
+    worker = "MassTranscriptor.Workers.TranscribeJob"
+
+    ObanJob
+    |> where([j], j.worker == ^worker)
+    |> where([j], j.state in ["executing", "available", "retryable", "scheduled"])
+    |> Repo.all()
+    |> Enum.filter(fn %ObanJob{args: args} ->
+      oban_job_id(args) == job_id
+    end)
+    |> Enum.each(&Oban.cancel_job/1)
+
+    :ok
+  end
+
+  defp oban_job_id(%{"job_id" => job_id}) when is_integer(job_id), do: job_id
+  defp oban_job_id(%{"job_id" => job_id}) when is_binary(job_id), do: String.to_integer(job_id)
+  defp oban_job_id(_), do: nil
 
   def downloadable_transcripts?(jobs) when is_list(jobs) do
     Enum.any?(jobs, &downloadable_transcript?/1)

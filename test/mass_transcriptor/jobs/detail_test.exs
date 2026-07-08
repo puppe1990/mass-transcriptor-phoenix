@@ -112,13 +112,36 @@ defmodule MassTranscriptor.Jobs.DetailTest do
     assert zip_binary =~ "second.md"
   end
 
-  test "retry_job/1 rejects non-failed jobs", %{tenant: tenant} do
+  test "retry_job/1 requeues stuck queued jobs", %{tenant: tenant} do
+    [job] =
+      Jobs.create_uploads_and_jobs(tenant, [
+        %{filename: "stuck.wav", mime_type: "audio/wav", size: 4, content: "data"}
+      ])
+
+    stuck_job =
+      Jobs.fetch_job!(job.id)
+      |> TranscriptionJob.changeset(%{})
+      |> Ecto.Changeset.put_change(
+        :inserted_at,
+        DateTime.utc_now() |> DateTime.add(-10, :minute) |> DateTime.truncate(:second)
+      )
+      |> Repo.update!()
+
+    assert Jobs.stuck?(stuck_job)
+
+    assert {:ok, %TranscriptionJob{status: "queued"}} = Jobs.retry_job(stuck_job)
+  end
+
+  test "retry_job/1 rejects fresh queued jobs when not stuck", %{tenant: tenant} do
     [job] =
       Jobs.create_uploads_and_jobs(tenant, [
         %{filename: "queued.wav", mime_type: "audio/wav", size: 4, content: "data"}
       ])
 
-    assert {:error, :not_failed} = Jobs.retry_job(Jobs.fetch_job!(job.id))
+    job = Jobs.fetch_job!(job.id)
+
+    refute Jobs.stuck?(job)
+    assert {:error, :not_retryable} = Jobs.retry_job(job)
   end
 
   defp complete_job!(tenant, job, transcript_text) do

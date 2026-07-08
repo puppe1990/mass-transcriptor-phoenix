@@ -50,7 +50,7 @@ defmodule MassTranscriptorWeb.BatchLive do
         nil ->
           put_flash(socket, :error, gettext("Job not found."))
 
-        %{status: "failed"} ->
+        %{retryable?: true} ->
           job = Jobs.fetch_job!(job_id)
 
           case Jobs.retry_job(job) do
@@ -62,7 +62,7 @@ defmodule MassTranscriptorWeb.BatchLive do
           end
 
         _ ->
-          put_flash(socket, :error, gettext("Only failed jobs can be retried."))
+          put_flash(socket, :error, gettext("This job cannot be retried yet."))
       end
 
     {:noreply, assign(socket, :retrying?, false)}

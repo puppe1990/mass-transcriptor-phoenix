@@ -53,6 +53,31 @@ defmodule MassTranscriptorWeb.BatchLiveTest do
     refute html =~ "hello one"
   end
 
+  test "shows retry button for stuck queued jobs", %{conn: conn, tenant: tenant} do
+    [job, _other] =
+      Jobs.create_uploads_and_jobs(tenant, [
+        %{filename: "stuck.wav", mime_type: "audio/wav", size: 4, content: "data"},
+        %{filename: "ok.wav", mime_type: "audio/wav", size: 4, content: "data"}
+      ])
+
+    Jobs.fetch_job!(job.id)
+    |> TranscriptionJob.changeset(%{})
+    |> Ecto.Changeset.put_change(
+      :inserted_at,
+      DateTime.utc_now() |> DateTime.add(-10, :minute) |> DateTime.truncate(:second)
+    )
+    |> Repo.update!()
+
+    {:ok, view, html} = live(conn, ~p"/t/#{tenant.slug}/batches/#{job.batch_id}")
+
+    assert html =~ "looks stuck"
+    assert has_element?(view, "#retry-job-#{job.id}")
+
+    view |> element("#retry-job-#{job.id}") |> render_click()
+
+    assert render(view) =~ "status-queued"
+  end
+
   test "shows retry button for failed jobs", %{conn: conn, tenant: tenant} do
     [job, _other] =
       Jobs.create_uploads_and_jobs(tenant, [

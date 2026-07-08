@@ -421,10 +421,17 @@ defmodule MassTranscriptorWeb.UIComponents do
       </div>
     </div>
 
+    <p :if={@job.stuck?} class="page-alert" id={"job-stuck-#{@job.id}"} role="status">
+      {gettext(
+        "This job looks stuck. Retry sends it back to the transcription queue without re-uploading the audio."
+      )}
+    </p>
+
     <div class="job-actions" id={"job-actions-#{@job.id}"}>
-      <%= if @job.status == "failed" do %>
+      <%= if @job.retryable? do %>
         <button
           type="button"
+          class="btn btn--secondary"
           id={"retry-job-#{@job.id}"}
           phx-click="retry_job"
           phx-value-job-id={@job.id}
