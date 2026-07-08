@@ -8,6 +8,7 @@ defmodule MassTranscriptor.Application do
   @impl true
   def start(_type, _args) do
     warn_missing_assemblyai_key()
+    warn_missing_video_tools()
 
     children = [
       MassTranscriptorWeb.Telemetry,
@@ -51,6 +52,16 @@ defmodule MassTranscriptor.Application do
         _ ->
           :ok
       end
+    end
+  end
+
+  defp warn_missing_video_tools do
+    unless MassTranscriptor.Media.VideoConverter.available?() do
+      require Logger
+
+      Logger.warning("""
+      ffmpeg/ffprobe are not available. Video uploads will fail until they are installed.
+      """)
     end
   end
 

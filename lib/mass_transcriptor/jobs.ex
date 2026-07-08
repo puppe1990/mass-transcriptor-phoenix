@@ -13,10 +13,12 @@ defmodule MassTranscriptor.Jobs do
     Upload
   }
 
+  alias MassTranscriptor.Media.VideoConverter
   alias MassTranscriptor.Repo
   alias MassTranscriptor.Storage
   alias MassTranscriptor.Transcription.{AssemblyAI, Markdown}
-  alias MassTranscriptor.Workers.TranscribeJob
+  alias MassTranscriptor.Workers.{ConvertVideoJob, TranscribeJob}
+  alias MassTranscriptorWeb.UploadFormats
   alias Oban.Job, as: ObanJob
 
   def create_uploads_and_jobs(%Tenant{} = tenant, files) when is_list(files) do
@@ -38,6 +40,8 @@ defmodule MassTranscriptor.Jobs do
   end
 
   defp create_upload_and_job!(tenant, batch, file) do
+    video? = UploadFormats.video?(file.filename, file.mime_type)
+
     {:ok, upload} =
       %Upload{}
       |> Ecto.Changeset.change(%{
@@ -45,16 +49,11 @@ defmodule MassTranscriptor.Jobs do
         original_filename: file.filename,
         mime_type: file.mime_type,
         size_bytes: file.size,
-        audio_path: "pending"
+        audio_path: if(video?, do: "pending_conversion", else: "pending")
       })
       |> Repo.insert()
 
-    audio_path = Storage.write_audio(tenant.slug, upload.id, file.filename, file.content)
-
-    {:ok, upload} =
-      upload
-      |> Upload.audio_changeset(%{audio_path: audio_path})
-      |> Repo.update()
+    upload = persist_upload_file!(tenant, upload, file)
 
     {:ok, job} =
       %TranscriptionJob{}
@@ -67,15 +66,92 @@ defmodule MassTranscriptor.Jobs do
       })
       |> Repo.insert()
 
-    {:ok, _oban_job} = enqueue_transcription(job)
+    {:ok, _oban_job} = enqueue_worker_for_upload(job, upload)
 
     job
+  end
+
+  defp persist_upload_file!(tenant, upload, file) do
+    if UploadFormats.video?(file.filename, file.mime_type) do
+      Storage.write_source_from_path(
+        tenant.slug,
+        upload.id,
+        file.filename,
+        file.source_path
+      )
+
+      upload
+    else
+      audio_path = Storage.write_audio(tenant.slug, upload.id, file.filename, file.content)
+
+      {:ok, upload} =
+        upload
+        |> Upload.audio_changeset(%{audio_path: audio_path})
+        |> Repo.update()
+
+      upload
+    end
+  end
+
+  def process_video_conversion(upload_id) do
+    upload = fetch_upload!(upload_id) |> Repo.preload(:tenant)
+    job = get_job_by_upload!(upload_id)
+    source_path = Storage.build_source_path(upload.tenant.slug, upload.id, upload.original_filename)
+
+    with {:ok, temp_mp3} <- VideoConverter.to_mp3(source_path),
+         audio_path <-
+           Storage.write_audio_from_path(
+             upload.tenant.slug,
+             upload.id,
+             mp3_filename(upload.original_filename),
+             temp_mp3
+           ),
+         {:ok, _upload} <-
+           upload
+           |> Upload.audio_changeset(%{audio_path: audio_path})
+           |> Repo.update(),
+         {:ok, _oban_job} <- enqueue_transcription(job) do
+      File.rm(temp_mp3)
+      :ok
+    else
+      {:error, message} when is_binary(message) ->
+        mark_job_failed(job, message)
+    end
+  end
+
+  def fetch_upload!(upload_id) do
+    Repo.get!(Upload, upload_id)
+  end
+
+  def get_job_by_upload!(upload_id) do
+    Repo.get_by!(TranscriptionJob, upload_id: upload_id)
+  end
+
+  defp enqueue_worker_for_upload(job, upload) do
+    if pending_conversion?(upload) do
+      %{upload_id: upload.id}
+      |> ConvertVideoJob.new()
+      |> Oban.insert()
+    else
+      enqueue_transcription(job)
+    end
   end
 
   defp enqueue_transcription(job) do
     %{job_id: job.id}
     |> TranscribeJob.new()
     |> Oban.insert()
+  end
+
+  defp pending_conversion?(upload) do
+    upload.audio_path == "pending_conversion"
+  end
+
+  defp mp3_filename(filename) do
+    filename
+    |> Path.basename()
+    |> Path.rootname()
+    |> Kernel.<>(".mp3")
   end
 
   def process_transcription_job(job_id) do
@@ -216,9 +292,14 @@ defmodule MassTranscriptor.Jobs do
            job
            |> TranscriptionJob.changeset(changes)
            |> Repo.update(),
-         {:ok, _oban_job} <- enqueue_transcription(job) do
+         {:ok, _oban_job} <- enqueue_worker_for_job(job) do
       {:ok, job}
     end
+  end
+
+  defp enqueue_worker_for_job(job) do
+    upload = Repo.get!(Upload, job.upload_id)
+    enqueue_worker_for_upload(job, upload)
   end
 
   defp stuck_by_status?("queued", inserted_at, _started_at) do
@@ -240,19 +321,33 @@ defmodule MassTranscriptor.Jobs do
   end
 
   defp cancel_oban_jobs_for(job_id) do
-    worker = "MassTranscriptor.Workers.TranscribeJob"
+    transcription_worker = "MassTranscriptor.Workers.TranscribeJob"
+    convert_worker = "MassTranscriptor.Workers.ConvertVideoJob"
+
+    job = Repo.get!(TranscriptionJob, job_id)
 
     ObanJob
-    |> where([j], j.worker == ^worker)
+    |> where([j], j.worker in [^transcription_worker, ^convert_worker])
     |> where([j], j.state in ["executing", "available", "retryable", "scheduled"])
     |> Repo.all()
-    |> Enum.filter(fn %ObanJob{args: args} ->
-      oban_job_id(args) == job_id
+    |> Enum.filter(fn %ObanJob{args: args, worker: worker} ->
+      case worker do
+        ^transcription_worker -> oban_job_id(args) == job_id
+        ^convert_worker -> oban_upload_id(args) == job.upload_id
+        _ -> false
+      end
     end)
     |> Enum.each(&Oban.cancel_job/1)
 
     :ok
   end
+
+  defp oban_upload_id(%{"upload_id" => upload_id}) when is_integer(upload_id), do: upload_id
+
+  defp oban_upload_id(%{"upload_id" => upload_id}) when is_binary(upload_id),
+    do: String.to_integer(upload_id)
+
+  defp oban_upload_id(_), do: nil
 
   defp oban_job_id(%{"job_id" => job_id}) when is_integer(job_id), do: job_id
   defp oban_job_id(%{"job_id" => job_id}) when is_binary(job_id), do: String.to_integer(job_id)
@@ -321,15 +416,26 @@ defmodule MassTranscriptor.Jobs do
              transcript_text: text,
              provider_metadata_json: Jason.encode!(metadata)
            })
-           |> Repo.insert() do
-      job
-      |> TranscriptionJob.changeset(%{
-        status: "completed",
-        completed_at: now,
-        error_message: nil
-      })
-      |> Repo.update()
+           |> Repo.insert(),
+         {:ok, job} <-
+           job
+           |> TranscriptionJob.changeset(%{
+             status: "completed",
+             completed_at: now,
+             error_message: nil
+           })
+           |> Repo.update() do
+      maybe_cleanup_media(job)
+      {:ok, job}
     end
+  end
+
+  defp maybe_cleanup_media(job) do
+    if UploadFormats.video?(job.upload.original_filename, job.upload.mime_type) do
+      Storage.cleanup_upload_media(job.tenant.slug, job.upload.id)
+    end
+
+    :ok
   end
 
   def mark_job_failed(%TranscriptionJob{} = job, message) do
