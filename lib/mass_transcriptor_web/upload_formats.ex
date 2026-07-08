@@ -28,15 +28,13 @@ defmodule MassTranscriptorWeb.UploadFormats do
   def max_video_bytes, do: @max_video_bytes
   def max_video_duration_seconds, do: @max_video_duration_seconds
 
-  def video?(filename) when is_binary(filename) do
-    video?(filename, nil)
-  end
+  def video?(filename, mime_type \\ nil)
 
   def video?(filename, mime_type) when is_binary(filename) do
     extension_video?(filename) or video_mime?(mime_type)
   end
 
-  def video?(_), do: false
+  def video?(_, _), do: false
 
   def hint do
     "MP3, WAV, OGG, M4A, FLAC or MP4, MOV, WebM, MKV (video up to 25 MB)"

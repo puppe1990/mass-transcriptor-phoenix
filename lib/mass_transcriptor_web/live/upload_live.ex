@@ -8,7 +8,7 @@ defmodule MassTranscriptorWeb.UploadLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, gettext("Upload Audio"))
+     |> assign(:page_title, gettext("Upload Audio or Video"))
      |> assign(:active_tab, :uploads)
      |> assign(:uploaded_jobs, [])
      |> assign(:upload_error, nil)
@@ -27,10 +27,10 @@ defmodule MassTranscriptorWeb.UploadLive do
       <section class="page">
         <header class="page__header">
           <p class="page__eyebrow">{@tenant_slug}</p>
-          <h1 class="page__title">{gettext("Upload Audio")}</h1>
+          <h1 class="page__title">{gettext("Upload Audio or Video")}</h1>
           <p class="page__subtitle">
             {gettext(
-              "Drop recordings here and we will transcribe them with AssemblyAI, then save each result as markdown in your workspace."
+              "Drop audio or short video files here. Videos are converted to audio, transcribed with AssemblyAI, and temporary media is removed after success."
             )}
           </p>
           <div class="page__actions">
@@ -80,13 +80,15 @@ defmodule MassTranscriptorWeb.UploadLive do
                 <.icon name="hero-arrow-up-tray" class="size-7" />
               </div>
               <p class="upload-dropzone__title">
-                {gettext("Drag and drop audio files here")}
+                {gettext("Drag and drop audio or video files here")}
               </p>
               <p class="upload-dropzone__hint">
-                {gettext("%{formats} · up to %{count} files · %{size} each",
+                {gettext(
+                  "%{formats} · up to %{count} files · audio %{audio_size} · video %{video_size}",
                   formats: UploadFormats.hint(),
                   count: 20,
-                  size: "100 MB"
+                  audio_size: "100 MB",
+                  video_size: "25 MB"
                 )}
               </p>
               <label class="btn btn--primary upload-dropzone__browse">
@@ -128,7 +130,15 @@ defmodule MassTranscriptorWeb.UploadLive do
               <ul class="upload-file-list">
                 <li :for={entry <- @uploads.audio.entries} class="upload-file-card">
                   <div class="upload-file-card__icon" aria-hidden="true">
-                    <.icon name="hero-musical-note" class="size-5" />
+                    <.icon
+                      name={
+                        if(UploadFormats.video?(entry.client_name, entry.client_type),
+                          do: "hero-film",
+                          else: "hero-musical-note"
+                        )
+                      }
+                      class="size-5"
+                    />
                   </div>
                   <div class="upload-file-card__body">
                     <p class="upload-file-card__name">{entry.client_name}</p>
@@ -163,7 +173,7 @@ defmodule MassTranscriptorWeb.UploadLive do
                   id="upload-empty-hint"
                   class="upload-footer__hint"
                 >
-                  {gettext("Select at least one audio file to start transcription.")}
+                  {gettext("Select at least one audio or video file to start transcription.")}
                 </p>
                 <p :if={@uploads.audio.entries != []} class="upload-footer__hint">
                   {gettext("%{count} file(s) ready to transcribe",
@@ -196,6 +206,7 @@ defmodule MassTranscriptorWeb.UploadLive do
 
   @impl true
   def handle_event("validate", _params, socket) do
+    socket = reject_oversized_videos(socket)
     message = upload_error_message(socket)
 
     socket =
@@ -222,17 +233,14 @@ defmodule MassTranscriptorWeb.UploadLive do
   def handle_event("upload", _params, socket) do
     tenant = socket.assigns.current_tenant
 
-    socket = assign(socket, :uploaded_jobs, [])
+    socket =
+      socket
+      |> assign(:uploaded_jobs, [])
+      |> reject_oversized_videos()
 
     files =
       consume_uploaded_entries(socket, :audio, fn %{path: path}, entry ->
-        {:ok,
-         %{
-           filename: entry.client_name,
-           mime_type: entry.client_type || "application/octet-stream",
-           size: entry.client_size,
-           content: File.read!(path)
-         }}
+        {:ok, build_upload_file(entry, path)}
       end)
 
     case files do
@@ -305,7 +313,10 @@ defmodule MassTranscriptorWeb.UploadLive do
     do: file_rejected_message(name)
 
   defp upload_error_to_string({:not_accepted, _entry}), do: UploadFormats.error_message()
-  defp upload_error_to_string({:too_large, entry}), do: too_large_message(entry)
+
+  defp upload_error_to_string({:too_large, entry}),
+    do: too_large_message(entry, entry.client_name)
+
   defp upload_error_to_string({:too_many_files, _entry}), do: gettext("Too many files selected.")
 
   defp upload_error_to_string({msg, _entry}) when is_binary(msg), do: msg
@@ -313,8 +324,54 @@ defmodule MassTranscriptorWeb.UploadLive do
   defp upload_error_to_string(_),
     do: gettext("Upload failed. Check the file type and try again.")
 
-  defp too_large_message(entry) do
-    gettext("%{name} is too large.", name: entry.client_name)
+  defp too_large_message(entry, name) do
+    if UploadFormats.video?(name, entry.client_type) do
+      UploadFormats.video_too_large_message(name)
+    else
+      gettext("%{name} is too large.", name: name)
+    end
+  end
+
+  defp build_upload_file(entry, path) do
+    base = %{
+      filename: entry.client_name,
+      mime_type: entry.client_type || "application/octet-stream",
+      size: entry.client_size
+    }
+
+    if UploadFormats.video?(entry.client_name, entry.client_type) do
+      Map.put(base, :source_path, stage_video_upload!(path))
+    else
+      Map.put(base, :content, File.read!(path))
+    end
+  end
+
+  defp stage_video_upload!(path) do
+    staged =
+      Path.join(
+        System.tmp_dir!(),
+        "mass-transcriptor-video-#{System.unique_integer([:positive])}#{Path.extname(path)}"
+      )
+
+    File.cp!(path, staged)
+    staged
+  end
+
+  defp reject_oversized_videos(socket) do
+    Enum.reduce(socket.assigns.uploads.audio.entries, socket, fn entry, acc ->
+      if video_too_large?(entry) do
+        acc
+        |> cancel_upload(:audio, entry.ref)
+        |> assign(:upload_error, UploadFormats.video_too_large_message(entry.client_name))
+      else
+        acc
+      end
+    end)
+  end
+
+  defp video_too_large?(entry) do
+    UploadFormats.video?(entry.client_name, entry.client_type) and
+      entry.client_size > UploadFormats.max_video_bytes()
   end
 
   defp entry_error(%{valid?: false} = entry) do
@@ -325,7 +382,7 @@ defmodule MassTranscriptorWeb.UploadLive do
 
   defp file_rejected_message(name) do
     gettext(
-      "%{name} is not supported. Use OGG, MP3, WAV, M4A, or other common audio formats.",
+      "%{name} is not supported. Use common audio formats or MP4, MOV, WebM, and MKV video.",
       name: name
     )
   end

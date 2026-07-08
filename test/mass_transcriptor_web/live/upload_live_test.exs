@@ -80,8 +80,41 @@ defmodule MassTranscriptorWeb.UploadLiveTest do
   test "shows hint when no files are selected", %{conn: conn, tenant: tenant} do
     {:ok, _view, html} = live(conn, ~p"/t/#{tenant.slug}/uploads")
 
-    assert html =~ "Select at least one audio file"
+    assert html =~ "Select at least one audio or video file"
     assert html =~ ~s(id="upload-empty-hint")
+  end
+
+  test "accepts mp4 video uploads", %{conn: conn, tenant: tenant} do
+    {:ok, view, _html} = live(conn, ~p"/t/#{tenant.slug}/uploads")
+
+    file = %{name: "clip.mp4", content: "fake-video", type: "video/mp4"}
+    upload = file_input(view, "#upload-form", :audio, [file])
+    render_upload(upload, "clip.mp4")
+
+    html = view |> element("#upload-form") |> render_submit()
+
+    [job] = Jobs.list_job_summaries_for_tenant(tenant.id)
+
+    assert html =~ "upload-success"
+    assert job.original_filename == "clip.mp4"
+  end
+
+  test "rejects video files larger than 25 MB", %{conn: conn, tenant: tenant} do
+    {:ok, view, _html} = live(conn, ~p"/t/#{tenant.slug}/uploads")
+
+    file = %{
+      name: "huge.mp4",
+      content: :binary.copy(<<0>>, 26_000_000),
+      type: "video/mp4"
+    }
+
+    upload = file_input(view, "#upload-form", :audio, [file])
+    render_upload(upload, "huge.mp4")
+    html = view |> element("#upload-form") |> render_change()
+
+    assert html =~ "25 MB"
+    assert html =~ "huge.mp4"
+    assert Jobs.list_job_summaries_for_tenant(tenant.id) == []
   end
 
   test "submit button shows uploading label while processing", %{conn: conn, tenant: tenant} do
