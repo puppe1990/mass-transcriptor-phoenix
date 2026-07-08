@@ -51,6 +51,7 @@ defmodule MassTranscriptorWeb.JobsLiveTest do
     assert html =~ "2 audios"
     assert html =~ "a.wav"
     assert html =~ "b.wav"
+    assert has_element?(view, ".jobs-row__meta")
     refute html =~ ~s(href="/t/#{tenant.slug}/jobs/1")
     assert has_element?(view, "a[href*=\"/batches/\"]")
   end

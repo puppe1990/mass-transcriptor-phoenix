@@ -193,16 +193,18 @@ defmodule MassTranscriptorWeb.UIComponents do
                   {gettext("%{count} audios", count: length(row.jobs))}
                 </p>
                 <p class="jobs-row__subtitle">
-                  {Enum.map_join(row.jobs, " · ", & &1.original_filename)}
+                  {summarize_batch_files(row.jobs)}
                 </p>
                 <p :if={batch_error_message(row.jobs)} class="jobs-row__error">
                   {batch_error_message(row.jobs)}
                 </p>
               </div>
               <div class="jobs-row__aside">
-                <span class="jobs-row__provider">{hd(row.jobs).provider_key}</span>
-                <.job_status_badge status={Grouping.summarize_batch_status(row.jobs)} />
-                <span class="jobs-row__date">{format_datetime(row.created_at)}</span>
+                <div class="jobs-row__meta">
+                  <span class="jobs-row__provider">{hd(row.jobs).provider_key}</span>
+                  <.job_status_badge status={Grouping.summarize_batch_status(row.jobs)} />
+                  <span class="jobs-row__date">{format_datetime(row.created_at)}</span>
+                </div>
               </div>
               <.icon name="hero-chevron-right" class="jobs-row__chevron size-4" />
             </.link>
@@ -222,9 +224,11 @@ defmodule MassTranscriptorWeb.UIComponents do
                 </p>
               </div>
               <div class="jobs-row__aside">
-                <span class="jobs-row__provider">{row.job.provider_key}</span>
-                <.job_status_badge status={row.job.status} />
-                <span class="jobs-row__date">{format_datetime(row.job.created_at)}</span>
+                <div class="jobs-row__meta">
+                  <span class="jobs-row__provider">{row.job.provider_key}</span>
+                  <.job_status_badge status={row.job.status} />
+                  <span class="jobs-row__date">{format_datetime(row.job.created_at)}</span>
+                </div>
               </div>
               <.icon name="hero-chevron-right" class="jobs-row__chevron size-4" />
             </.link>
@@ -300,6 +304,25 @@ defmodule MassTranscriptorWeb.UIComponents do
   defp batch_error_message(jobs) do
     jobs
     |> Enum.find_value(& &1.error_message)
+  end
+
+  defp summarize_batch_files(jobs) do
+    filenames = Enum.map(jobs, & &1.original_filename)
+
+    case filenames do
+      [filename] ->
+        filename
+
+      [first, second] ->
+        "#{first} · #{second}"
+
+      [first, second | _rest] ->
+        gettext("%{first} · %{second} + %{count} more",
+          first: first,
+          second: second,
+          count: length(filenames) - 2
+        )
+    end
   end
 
   defp status_label("queued"), do: gettext("Queued")
