@@ -18,7 +18,10 @@ config :mime, :extensions, %{
   "aac" => "audio/aac",
   "wma" => "audio/x-ms-wma",
   "mpga" => "audio/mpeg",
-  "webm" => "audio/webm"
+  "webm" => "audio/webm",
+  "mp4" => "video/mp4",
+  "mov" => "video/quicktime",
+  "mkv" => "video/x-matroska"
 }
 
 config :mass_transcriptor,
@@ -31,7 +34,7 @@ config :mass_transcriptor, Oban,
   repo: MassTranscriptor.Repo,
   engine: Oban.Engines.Lite,
   notifier: Oban.Notifiers.Isolated,
-  queues: [transcription: 2],
+  queues: [convert: 1, transcription: 2],
   plugins: [
     Oban.Plugins.Pruner,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(10)}
